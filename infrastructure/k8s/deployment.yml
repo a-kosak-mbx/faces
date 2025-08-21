@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: vectorize
+spec:
+  replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app: vectorize
+  template:
+    metadata:
+      labels:
+        app: vectorize
+    spec:
+      containers:
+      - name: vectorize
+        image: vectorizer:latest
+        ports:
+        - containerPort: 8090
+        readinessProbe:
+          httpGet:
+            path: /ping
+            port: 8090
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /ping
+            port: 8090
+          initialDelaySeconds: 15
+          periodSeconds: 20
+        resources:
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+        env:
+        - name: API_X_KEY
+          valueFrom:
+            secretKeyRef:
+              name: image-search-secrets
+              key: api_x_key
+
+
+
+
