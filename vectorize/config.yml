@@ -7,3 +7,8 @@ milvus:
   endpoint_url: localhost
   port: 19530
   collection_id: faces
+  vector_size: 512
+  login: root
+  password: Milvus
+service:
+  max_image_size: 20  # MB

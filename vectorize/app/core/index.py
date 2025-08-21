@@ -1,30 +1,25 @@
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import numpy as np
-from pymilvus import connections, Collection
+from pymilvus import AsyncMilvusClient
 
 
 class Index:
     __collection_id: str
-    __collection: Collection
+    __client: AsyncMilvusClient
 
-    DEFAULT_CONNECTION_ALIAS: str = "default"
-
-    def __init__(self, host: str, port: int, collection_id: str):
+    def __init__(self, host: str, port: int, login: str, password: str, collection_id: str):
         self.__collection_id = collection_id
-        if not connections.has_connection(Index.DEFAULT_CONNECTION_ALIAS):
-            connections.connect(alias=Index.DEFAULT_CONNECTION_ALIAS, host=host, port=port)
-        self.__collection = Collection(name=collection_id)
+        self.__client = AsyncMilvusClient(uri=f"http://{host}:{port}", token=f"{login}:{password}")
 
-    def query(self, embedding: np.ndarray, limit: int):
+    async def query(self, embedding: np.ndarray, limit: int):
         search_params = {
-            "metric_type": "L2",  # или "IP" (inner product), или "COSINE"
+            "metric_type": "IP",
             "params": {"nprobe": 10}
         }
 
-        self.__collection.load()
-
-        results = self.__collection.search(
+        results = await self.__client.search(
+            collection_name=self.__collection_id,
             data=[embedding, ],
             anns_field="embedding",
             param=search_params,
@@ -34,12 +29,26 @@ class Index:
 
         return results
 
-    def query_all(self) -> List[Dict[str, Any]]:
-        self.__collection.load()
-
-        result: List[Dict[str, Any]] = self.__collection.query(
-            expr="face_id >= 0",
-            output_fields=["face_id", "photo_id", "path", "excluded"]
+    async def query_all(self) -> List[Dict[str, Any]]:
+        result: List[Dict[str, Any]] = await self.__client.query(
+            collection_name=self.__collection_id,
+            filter="face_id >= 0",
+            output_fields=["face_id", "photo_id", "path", "excluded", ]
         )
 
         return result
+
+    async def exclude(self, photo_id: Optional[str] = None):
+        condition = f"photo_id == '{photo_id}'" if photo_id else ""
+        entries = await self.__client.query(
+            collection_name=self.__collection_id,
+            filter=condition,
+            output_fields=["face_id", "file_id", "path", "bbox", "embedding", "excluded", ]
+        )
+
+        entities_to_upsert = []
+        for entity in entries:
+            entity["excluded"] = True
+            entities_to_upsert.append(entity)
+
+        await self.__client.insert(self.__collection_id, entities_to_upsert)

@@ -28,12 +28,15 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "FaceDetector"
     API_V1_STR: str = "/api/v1"
     X_API_KEY: str = "default-x-api-key"
-    MAX_IMAGE_SIZE: int = 5  # The size of an image file to search is 5MB max.
+    MAX_IMAGE_SIZE: int = 20  # The size of an image file to search is 20MB max.
 
     # Milvus settings.
     MILVUS_HOST: str = "localhost"
     MILVUS_PORT: int = 19530
+    MILVUS_LOGIN: str = "root"
+    MILVUS_PASSWORD: str = "Milvus"
     MILVUS_COLLECTION_ID: str = "faces"
+    MILVUS_VECTOR_SIZE: int = 512
 
     @classmethod
     def settings_customise_sources(cls,
