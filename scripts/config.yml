@@ -1,0 +1,12 @@
+s3:
+  bucket_id: images
+  endpoint_url: http://127.0.0.1:9100/
+  access_key: minioadmin
+  secret_key: minioadmin
+milvus:
+  endpoint_url: localhost
+  port: 19530
+  collection_id: faces
+  vector_size: 512
+vectorize:
+  endpoint_url: http://127.0.0.1:8090/
