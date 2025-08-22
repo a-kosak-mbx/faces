@@ -1,18 +1,20 @@
 import os
-from pathlib import Path
-from typing import Any, Callable
+from typing import Callable
 
-import yaml
+from pydantic import BaseModel
 from pydantic_settings import BaseSettings, PydanticBaseSettingsSource, SettingsConfigDict
 from pydantic_settings_yaml.base_settings import YamlConfigSettingsSource
 
 
-def yaml_config_settings(base_settings: BaseSettings) -> dict[str, Any]:
-    config_file = Path("config.yaml")
-    if config_file.exists():
-        with open(config_file, "r", encoding="utf-8") as file:
-            return yaml.safe_load(file) or {}
-    return {}
+class S3Settings(BaseModel):
+    endpoint_url: str
+    access_key: str
+    secret_key: str
+    bucket_id: str
+
+
+class ServiceSettings(BaseModel):
+    max_image_size: int
 
 
 class Settings(BaseSettings):
@@ -38,6 +40,10 @@ class Settings(BaseSettings):
     MILVUS_COLLECTION_ID: str = "faces"
     MILVUS_VECTOR_SIZE: int = 512
 
+    s3: S3Settings
+
+    service: ServiceSettings
+
     @classmethod
     def settings_customise_sources(cls,
                                    settings_cls: type[BaseSettings],
@@ -56,3 +62,4 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
+print(settings)

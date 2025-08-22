@@ -23,7 +23,7 @@ IndexDependency = Annotated[Index, Depends(get_index)]
 
 
 async def get_storage(settings: SettingsDependency) -> Storage:
-    return Storage(settings["s3"])
+    return Storage(settings)
 
 
 StorageDependency = Annotated[Storage, Depends(get_storage)]

@@ -5,7 +5,7 @@ import requests
 
 
 def vectorize_photo(configuration: Dict[str, Any], file_path: Path):
-    vectorize_service_url = configuration["vectorize"]["url"]
+    vectorize_service_url = configuration["vectorize"]["endpoint_url"] + "api/v1/detect_faces/"
 
     with open(file_path.resolve(), "rb") as file:
         files_to_vectorize = {"file": (file_path.name, file, "image/jpeg")}

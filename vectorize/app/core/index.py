@@ -52,3 +52,18 @@ class Index:
             entities_to_upsert.append(entity)
 
         await self.__client.insert(self.__collection_id, entities_to_upsert)
+
+    async def insert(self, photo_id: str, detected_faces: List[Dict[str, Any]]):
+        entities_to_insert = []
+        for face in detected_faces:
+            entity = {
+                "file_id": photo_id,
+                # "bbox": face["bbox"],
+                "path": photo_id,
+                "embedding": face["embedding"],
+                "excluded": False,
+            }
+
+            entities_to_insert.append(entity)
+
+        await self.__client.insert(self.__collection_id, entities_to_insert)

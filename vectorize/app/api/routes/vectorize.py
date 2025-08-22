@@ -1,7 +1,9 @@
+import io
+
 from fastapi import APIRouter, File, HTTPException, UploadFile, status
 
 from app.api.dependencies import IndexDependency, SettingsDependency, StorageDependency
-from app.api.tools import detect_faces
+from app.api.tools import detect_faces as tools_detect_faces
 
 router = APIRouter()
 from typing import List, Optional, Tuple
@@ -38,14 +40,14 @@ async def detect_faces(settings: SettingsDependency, index: IndexDependency, sto
     if not file.filename.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
         raise HTTPException(status_code=400, detail="Only jpg/jpeg/png/webp files are allowed")
 
-    max_image_size = settings["service"]["max_file_size"]
+    max_image_size = settings.service.max_image_size
     if file.size / (1024 * 1024) > max_image_size:
         raise HTTPException(status_code=400, detail=f"Files greater than {max_image_size}MB are not allowed")
 
     file_content = await file.read()
-    image = Image.open(file_content)
+    image = Image.open(io.BytesIO(file_content))
 
-    detected_faces = detect_faces(image)
+    detected_faces = tools_detect_faces(image)
     if not detected_faces:
         raise HTTPException(status_code=400, detail="No faces were detected on the image")
 
