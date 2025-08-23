@@ -1,14 +1,11 @@
-import yaml
-
 from bootstrap.db import reset as reset_db
 from bootstrap.s3 import reset as reset_s3, fill as fill_s3
+from scripts.config import read_configuration
 
 
 def main():
     # Read configuration file.
-    configuration = {}
-    with open("config.yml", "r", encoding="utf-8") as f:
-        configuration = yaml.safe_load(f)
+    configuration = read_configuration()
 
     if configuration:
         # Reset database.

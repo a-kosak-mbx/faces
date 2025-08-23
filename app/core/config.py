@@ -12,6 +12,13 @@ class S3Settings(BaseModel):
     secret_key: str
     bucket_id: str
 
+class MilvusSettings(BaseModel):
+    endpoint_url: str
+    port: int
+    collection_id: str
+    vector_size: int
+    login: str
+    password: str
 
 class ServiceSettings(BaseModel):
     max_image_size: int
@@ -41,7 +48,7 @@ class Settings(BaseSettings):
     MILVUS_VECTOR_SIZE: int = 512
 
     s3: S3Settings
-
+    milvus: MilvusSettings
     service: ServiceSettings
 
     @classmethod

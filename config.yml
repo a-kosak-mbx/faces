@@ -10,5 +10,7 @@ milvus:
   vector_size: 512
   login: root
   password: Milvus
+vectorize:
+  endpoint_url: http://127.0.0.1:8090/
 service:
   max_image_size: 20  # MB

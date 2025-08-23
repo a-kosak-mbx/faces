@@ -15,8 +15,8 @@ SettingsDependency = Annotated[Settings, Depends(get_settings)]
 
 
 async def get_index(settings: Settings = Depends(get_settings)) -> Index:
-    return Index(settings.MILVUS_HOST, settings.MILVUS_PORT, settings.MILVUS_LOGIN, settings.MILVUS_PASSWORD,
-                 settings.MILVUS_COLLECTION_ID)
+    return Index(settings.milvus.endpoint_url, settings.milvus.port, settings.milvus.login, settings.milvus.password,
+                 settings.milvus.collection_id)
 
 
 IndexDependency = Annotated[Index, Depends(get_index)]
