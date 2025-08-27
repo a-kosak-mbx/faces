@@ -12,6 +12,7 @@ class S3Settings(BaseModel):
     secret_key: str
     bucket_id: str
 
+
 class MilvusSettings(BaseModel):
     endpoint_url: str
     port: int
@@ -19,6 +20,7 @@ class MilvusSettings(BaseModel):
     vector_size: int
     login: str
     password: str
+
 
 class ServiceSettings(BaseModel):
     max_image_size: int
@@ -37,15 +39,6 @@ class Settings(BaseSettings):
     PROJECT_NAME: str = "FaceDetector"
     API_V1_STR: str = "/api/v1"
     X_API_KEY: str = "default-x-api-key"
-    MAX_IMAGE_SIZE: int = 20  # The size of an image file to search is 20MB max.
-
-    # Milvus settings.
-    MILVUS_HOST: str = "localhost"
-    MILVUS_PORT: int = 19530
-    MILVUS_LOGIN: str = "root"
-    MILVUS_PASSWORD: str = "Milvus"
-    MILVUS_COLLECTION_ID: str = "faces"
-    MILVUS_VECTOR_SIZE: int = 512
 
     s3: S3Settings
     milvus: MilvusSettings
@@ -69,4 +62,3 @@ class Settings(BaseSettings):
 
 
 settings = Settings()  # type: ignore
-print(settings)

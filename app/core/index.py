@@ -5,6 +5,20 @@ from pymilvus import AsyncMilvusClient
 
 from app.core.face_item import FaceItem
 
+INDEX_FIELD_FACE_ID: str = "face_id"
+INDEX_FIELD_PHOTO_ID: str = "photo_id"
+INDEX_FIELD_COLLECTION_ID: str = "collection_id"
+INDEX_FIELD_BBOX: str = "bbox"
+INDEX_FIELD_EMBEDDING: str = "embedding"
+
+INDEX_FIELDS: List[str] = [
+    INDEX_FIELD_FACE_ID,
+    INDEX_FIELD_PHOTO_ID,
+    INDEX_FIELD_COLLECTION_ID,
+    INDEX_FIELD_BBOX,
+    INDEX_FIELD_EMBEDDING,
+]
+
 
 class Index:
     __collection_id: str
@@ -25,90 +39,105 @@ class Index:
     def __get_client(self) -> AsyncMilvusClient:
         return AsyncMilvusClient(uri=f"http://{self.__host}:{self.__port}", token=f"{self.__login}:{self.__password}")
 
-    async def query(self, embedding: np.ndarray, limit: int):
-        search_params = {
-            "metric_type": "IP",
-            "params": {"nprobe": 10}
-        }
+    async def query_all(self, collection_id: Optional[str] = None) -> List[FaceItem]:
+        if collection_id:
+            condition = f"{INDEX_FIELD_COLLECTION_ID} == {collection_id}"
+        else:
+            condition = f"{INDEX_FIELD_COLLECTION_ID} != ''"
 
-        results = await self.__client.search(
-            collection_name=self.__collection_id,
-            data=[embedding, ],
-            anns_field="embedding",
-            param=search_params,
-            limit=limit,
-            output_fields=["file_id", "face_id"]
-        )
-
-        return results
-
-    async def query_all(self) -> List[Dict[str, Any]]:
-        result = await self.__client.query(
-            collection_name=self.__collection_id,
-            filter="face_id >= 0",
-            output_fields=["face_id", "file_id", "path", "excluded", ]
-        )
-
-        return result
-
-    async def exclude(self, photo_id: Optional[str] = None):
-        condition = f"file_id == '{photo_id}'" if photo_id else "file_id != ''"
-        entries = await self.__client.query(
+        items = await self.__client.query(
             collection_name=self.__collection_id,
             filter=condition,
-            output_fields=["face_id", "file_id", "path", "embedding", "excluded", ]
+            output_fields=[INDEX_FIELD_FACE_ID, INDEX_FIELD_PHOTO_ID, ]
         )
 
-        face_ids = [str(entry["face_id"]) for entry in entries]
+        face_items = [
+            FaceItem(
+                face_id=item[INDEX_FIELD_FACE_ID],
+                photo_id=item[INDEX_FIELD_PHOTO_ID],
+            ) for item in items
+        ]
 
-        entries_to_upsert = []
-        for entry in entries:
-            entry["excluded"] = True
-            entries_to_upsert.append(entry)
+        return face_items
+
+    async def query_photo(self, photo_id: str) -> List[FaceItem]:
+        items = await self.__client.query(
+            collection_name=self.__collection_id,
+            filter=f"{INDEX_FIELD_PHOTO_ID} == {photo_id}",
+            output_fields=INDEX_FIELDS
+        )
+
+        face_items = [
+            FaceItem(
+                face_id=item[INDEX_FIELD_FACE_ID],
+                photo_id=item[INDEX_FIELD_PHOTO_ID],
+                collection_id=item[INDEX_FIELD_COLLECTION_ID],
+                bbox=item[INDEX_FIELD_BBOX],
+                embedding=item[INDEX_FIELD_EMBEDDING]
+            ) for item in items
+        ]
+
+        return face_items
+
+    async def exclude(self, photo_id: Optional[str] = None, collection_id: Optional[str] = None):
+        index_condition = f"{INDEX_FIELD_PHOTO_ID} == '{photo_id}'" if photo_id else f"{INDEX_FIELD_PHOTO_ID} != ''"
+        collection_condition = f"{INDEX_FIELD_COLLECTION_ID} == '{collection_id}'" if collection_id else ""
+        condition = index_condition
+        if collection_condition:
+            condition += " and " + collection_condition
 
         await self.__client.delete(
             collection_name=self.__collection_id,
-            filter=f"face_id in [{', '.join(face_ids)}]"
+            filter=condition
         )
 
-        await self.__client.upsert(self.__collection_id, entries_to_upsert)
-
-    async def insert(self, photo_id: str, detected_faces: List[Dict[str, Any]]):
+    async def insert(self, photo_id: str, collection_id: str, detected_faces: List[Dict[str, Any]]):
         entities_to_insert = []
         for face in detected_faces:
             entity = {
-                "file_id": photo_id,
-                # "bbox": face["bbox"],
-                "path": photo_id,
-                "embedding": face["embedding"],
-                "excluded": False,
+                INDEX_FIELD_PHOTO_ID: photo_id,
+                INDEX_FIELD_COLLECTION_ID: collection_id,
+                INDEX_FIELD_BBOX: face["bbox"],
+                INDEX_FIELD_EMBEDDING: face["embedding"],
             }
 
             entities_to_insert.append(entity)
 
         await self.__client.insert(self.__collection_id, entities_to_insert)
 
-    async def search(self, vector: np.ndarray, limit: int = 10) -> List[FaceItem]:
+    async def search(self, vector: np.ndarray, collection_id: Optional[str] = None, page: Optional[int] = None,
+                     page_size: Optional[int] = None, limit: int = 100) -> List[FaceItem]:
         search_params = {
             "metric_type": "IP",
             "params": {"nprobe": 10}
         }
 
+        condition = f"{INDEX_FIELD_COLLECTION_ID} == '{collection_id}'" if collection_id else ""
+
         faces = await self.__client.search(
             collection_name=self.__collection_id,
             data=[vector, ],
             anns_field="embedding",
+            filter=condition,
             search_param=search_params,
             limit=limit,
-            output_fields=["face_id", "file_id", "path", "embedding", "excluded", ]
+            output_fields=INDEX_FIELDS
         )
 
+        if page is not None and page_size is not None:
+            offset = page * page_size
+            size = page_size
+            size = max(0, min(size, limit - offset))
+        else:
+            offset = 0
+            size = limit
+
         face_items = [FaceItem(
-            face_id=face['entity']["face_id"],
-            photo_id=face['entity']["file_id"],
-            path=face['entity']["path"],
-            embedding=face['entity']["embedding"],
-            excluded=face['entity']["excluded"]
-        ) for face in faces[0]]
+            face_id=face["entity"]["face_id"],
+            photo_id=face["entity"]["file_id"],
+            collection_id=face["entity"]["path"],
+            bbox=face["entity"]["bbox"],
+            embedding=face["entity"]["embedding"],
+        ) for face in faces[offset:offset + size]]
 
         return face_items

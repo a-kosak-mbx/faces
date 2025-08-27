@@ -8,7 +8,6 @@ from pydantic import BaseModel
 class FaceItem(BaseModel):
     face_id: int
     photo_id: str
-    path: Optional[str] = None
+    collection_id: Optional[str] = None
     bbox: Optional[Tuple[float, float, float, float]] = None
     embedding: Optional[List[float]] = None
-    excluded: bool
