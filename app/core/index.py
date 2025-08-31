@@ -41,20 +41,21 @@ class Index:
 
     async def query_all(self, collection_id: Optional[str] = None) -> List[FaceItem]:
         if collection_id:
-            condition = f"{INDEX_FIELD_COLLECTION_ID} == {collection_id}"
+            condition = f"{INDEX_FIELD_COLLECTION_ID} == '{collection_id}'"
         else:
             condition = f"{INDEX_FIELD_COLLECTION_ID} != ''"
 
         items = await self.__client.query(
             collection_name=self.__collection_id,
             filter=condition,
-            output_fields=[INDEX_FIELD_FACE_ID, INDEX_FIELD_PHOTO_ID, ]
+            output_fields=[INDEX_FIELD_FACE_ID, INDEX_FIELD_PHOTO_ID, INDEX_FIELD_COLLECTION_ID, ]
         )
 
         face_items = [
             FaceItem(
                 face_id=item[INDEX_FIELD_FACE_ID],
                 photo_id=item[INDEX_FIELD_PHOTO_ID],
+                collection_id=item[INDEX_FIELD_COLLECTION_ID],
             ) for item in items
         ]
 
@@ -63,7 +64,7 @@ class Index:
     async def query_photo(self, photo_id: str) -> List[FaceItem]:
         items = await self.__client.query(
             collection_name=self.__collection_id,
-            filter=f"{INDEX_FIELD_PHOTO_ID} == {photo_id}",
+            filter=f"{INDEX_FIELD_PHOTO_ID} == '{photo_id}'",
             output_fields=INDEX_FIELDS
         )
 
@@ -94,19 +95,21 @@ class Index:
     async def insert(self, photo_id: str, collection_id: str, detected_faces: List[Dict[str, Any]]):
         entities_to_insert = []
         for face in detected_faces:
+            normalized = self.__normalize(face["embedding"])
             entity = {
                 INDEX_FIELD_PHOTO_ID: photo_id,
                 INDEX_FIELD_COLLECTION_ID: collection_id,
                 INDEX_FIELD_BBOX: face["bbox"],
-                INDEX_FIELD_EMBEDDING: face["embedding"],
+                INDEX_FIELD_EMBEDDING: normalized,
             }
 
             entities_to_insert.append(entity)
 
         await self.__client.insert(self.__collection_id, entities_to_insert)
 
-    async def search(self, vector: np.ndarray, collection_id: Optional[str] = None, page: Optional[int] = None,
-                     page_size: Optional[int] = None, limit: int = 100) -> List[FaceItem]:
+    async def search(self, vector: np.ndarray, min_absolute_score: float, max_relative_score: float, max_top_distance,
+                     collection_id: Optional[str] = None, page: Optional[int] = None, page_size: Optional[int] = None,
+                     limit: int = 100) -> List[FaceItem]:
         search_params = {
             "metric_type": "IP",
             "params": {"nprobe": 10}
@@ -116,13 +119,29 @@ class Index:
 
         faces = await self.__client.search(
             collection_name=self.__collection_id,
-            data=[vector, ],
+            data=[self.__normalize(vector), ],
             anns_field="embedding",
             filter=condition,
             search_param=search_params,
             limit=limit,
-            output_fields=INDEX_FIELDS
+            output_fields=[INDEX_FIELD_FACE_ID, INDEX_FIELD_PHOTO_ID, INDEX_FIELD_COLLECTION_ID, INDEX_FIELD_BBOX, ]
         )
+
+        candidates = []
+        if len(faces[0]) > 0:
+            top_candidate_score = faces[0][0]["distance"]
+            previous_candidate_score = top_candidate_score
+            for face in faces[0]:
+                score = face["distance"]
+                if score < min_absolute_score:
+                    break
+                if previous_candidate_score - score > max_relative_score:
+                    break
+                if abs(top_candidate_score - score) > max_top_distance:
+                    break
+
+                previous_candidate_score = score
+                candidates.append(face["entity"])
 
         if page is not None and page_size is not None:
             offset = page * page_size
@@ -133,11 +152,14 @@ class Index:
             size = limit
 
         face_items = [FaceItem(
-            face_id=face["entity"]["face_id"],
-            photo_id=face["entity"]["file_id"],
-            collection_id=face["entity"]["path"],
-            bbox=face["entity"]["bbox"],
-            embedding=face["entity"]["embedding"],
-        ) for face in faces[offset:offset + size]]
+            face_id=face["face_id"],
+            photo_id=face["photo_id"],
+            collection_id=face["collection_id"],
+            bbox=face["bbox"],
+        ) for face in candidates[offset:offset + size]]
 
         return face_items
+
+    @staticmethod
+    def __normalize(vector: np.ndarray) -> np.ndarray:
+        return vector / np.linalg.norm(vector)

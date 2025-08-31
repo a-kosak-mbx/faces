@@ -24,6 +24,10 @@ class MilvusSettings(BaseModel):
 
 class ServiceSettings(BaseModel):
     max_image_size: int
+    page_size: int
+    min_absolute_score: float
+    max_relative_score: float
+    max_top_distance: float
 
 
 class Settings(BaseSettings):

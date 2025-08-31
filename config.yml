@@ -14,3 +14,7 @@ vectorize:
   endpoint_url: http://127.0.0.1:8090/
 service:
   max_image_size: 20  # MB
+  page_size: 2
+  min_absolute_score: 0.2
+  max_relative_score: 0.3
+  max_top_distance: 0.4

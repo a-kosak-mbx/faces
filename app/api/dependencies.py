@@ -1,6 +1,8 @@
 from typing import Annotated
 
-from fastapi import Depends
+from fastapi import Depends, HTTPException, Security
+from fastapi.openapi.models import APIKey
+from fastapi.security.api_key import APIKeyHeader
 
 from app.core.config import Settings, settings as global_settings
 from app.core.index import Index
@@ -27,3 +29,15 @@ async def get_storage(settings: SettingsDependency) -> Storage:
 
 
 StorageDependency = Annotated[Storage, Depends(get_storage)]
+
+API_KEY_NAME = "X-API-Key"
+api_key_header = APIKeyHeader(name=API_KEY_NAME, auto_error=False)
+
+
+def get_api_key(settings: SettingsDependency, api_key: str = Security(api_key_header)):
+    if api_key == settings.X_API_KEY:
+        return api_key
+    raise HTTPException(status_code=401, detail="Invalid or missing API Key")
+
+
+ApiKeyDependency = Annotated[APIKey, Depends(get_api_key)]

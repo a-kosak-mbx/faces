@@ -1,5 +1,5 @@
 import io
-from typing import List
+from typing import List, Optional
 
 from PIL import Image
 from fastapi import APIRouter, File, UploadFile, HTTPException
@@ -13,8 +13,8 @@ router = APIRouter()
 
 
 @router.post("/search", status_code=status.HTTP_200_OK)
-async def search(collection_id: str, page: int, limit: int, settings: SettingsDependency, index: IndexDependency,
-                 file: UploadFile = File(...)) -> \
+async def search(settings: SettingsDependency, index: IndexDependency, collection_id: Optional[str] = None,
+                 page: Optional[int] = 0, limit: Optional[int] = 100, file: UploadFile = File(...)) -> \
         List[FaceItem]:
     if not file.filename.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
         raise HTTPException(status_code=400, detail="Only jpg/jpeg/png/webp files are allowed")
@@ -34,7 +34,9 @@ async def search(collection_id: str, page: int, limit: int, settings: SettingsDe
     if num_faces_detected > 1:
         raise HTTPException(status_code=400, detail="Two many faces on the image")
 
-    face_items = await index.search(detected_faces[0]["embedding"], collection_id=collection_id, page=page,
-                                    page_size=settings.service.page_size, limit=limit)
+    face_items = await index.search(detected_faces[0]["embedding"], settings.service.min_absolute_score,
+                                    settings.service.max_relative_score, settings.service.max_top_distance,
+                                    collection_id=collection_id, page=page, page_size=settings.service.page_size,
+                                    limit=limit)
 
     return face_items

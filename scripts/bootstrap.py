@@ -1,6 +1,6 @@
 from bootstrap.db import reset as reset_db
 from bootstrap.s3 import reset as reset_s3, fill as fill_s3
-from scripts.config import read_configuration
+from config import read_configuration
 
 
 def main():
@@ -10,8 +10,8 @@ def main():
     if configuration:
         # Reset database.
         reset_db(configuration)
-        reset_s3(configuration)
-        fill_s3(configuration)
+        # reset_s3(configuration)
+        # fill_s3(configuration)
 
 
 if __name__ == "__main__":
