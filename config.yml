@@ -4,7 +4,7 @@ s3:
   access_key: minioadmin
   secret_key: minioadmin
 milvus:
-  endpoint_url: localhost
+  endpoint_url: milvus.milvus.svc.cluster.local
   port: 19530
   collection_id: faces
   vector_size: 512
