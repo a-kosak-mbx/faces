@@ -8,10 +8,12 @@ kind: Service
 metadata:
   name: milvus
   namespace: milvus
-labels:
-  app: milvus
+  labels:
+    app: milvus
 spec:
   type: NodePort
+  selector:
+    app: milvus
   ports:
     - name: milvus
       port: 19530
@@ -21,14 +23,14 @@ spec:
       port: 9091
       targetPort: 9091
       nodePort: 30091
-  selector:
-    app: milvus
 ---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: milvus
   namespace: milvus
+  labels:
+    app: milvus
 spec:
   replicas: 1
   selector:
